@@ -4,6 +4,10 @@ authors = []
 description = ""
 telemetry = false
 requirements = []
+[contracts.node-rewards]
+path = "contracts/node-rewards.clar"
+depends_on = []
+
 [contracts.node-vault]
 path = "contracts/node-vault.clar"
 depends_on = []
