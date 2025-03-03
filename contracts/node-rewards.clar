@@ -7,6 +7,7 @@
 (define-constant err-invalid-node (err u401))
 (define-constant err-too-early (err u402))
 (define-constant err-inactive-node (err u403))
+(define-constant err-unauthorized (err u404))
 
 ;; Maps
 (define-map reward-claims
@@ -17,19 +18,13 @@
 
 ;; Claim rewards
 (define-public (claim-rewards)
-  (let ((node-data (unwrap! (contract-call? .node-vault get-node tx-sender) err-invalid-node)))
-    (if (is-some node-data)
-      (let ((node-info (unwrap-panic node-data))
-            (last-claim (default-to u0 (get last-claim 
-                       (default-to {last-claim: u0, total-claimed: u0} 
-                       (map-get? reward-claims tx-sender))))))
-        (asserts! (is-eq (get status node-info) "active") err-inactive-node)
-        (if (>= block-height (+ last-claim reward-cycle))
-          (ok (map-set reward-claims
-              tx-sender
-              {last-claim: block-height,
-               total-claimed: (+ reward-amount (get total-claimed 
-                              (default-to {last-claim: u0, total-claimed: u0}
-                              (map-get? reward-claims tx-sender))))}))
-          err-too-early))
-      err-invalid-node)))
+  (let ((node-data (unwrap! (contract-call? .node-vault get-node tx-sender) err-invalid-node))
+        (claim-data (default-to {last-claim: u0, total-claimed: u0} 
+                    (map-get? reward-claims tx-sender))))
+    (asserts! (is-eq (get status node-data) "active") err-inactive-node)
+    (asserts! (>= block-height (+ (get last-claim claim-data) reward-cycle)) err-too-early)
+    (try! (as-contract (stx-transfer? reward-amount (as-contract tx-sender) tx-sender)))
+    (ok (map-set reward-claims
+        tx-sender
+        {last-claim: block-height,
+         total-claimed: (+ reward-amount (get total-claimed claim-data))}))))
