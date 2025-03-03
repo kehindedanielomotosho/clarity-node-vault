@@ -20,7 +20,15 @@ Clarinet.test({
     assertEquals(block.receipts.length, 1);
     assertEquals(block.height, 2);
     block.receipts[0].result.expectOk();
-  },
+    
+    let nodeData = chain.callReadOnlyFn(
+      "node-vault",
+      "get-node",
+      [types.principal(wallet_1.address)],
+      wallet_1.address
+    );
+    nodeData.result.expectOk().expectSome();
+  }
 });
 
 Clarinet.test({
@@ -35,5 +43,35 @@ Clarinet.test({
     
     assertEquals(block.receipts.length, 1);
     block.receipts[0].result.expectErr(101);
-  },
+  }
+});
+
+Clarinet.test({
+  name: "Test unregister node functionality",
+  async fn(chain: Chain, accounts: Map<string, Account>) {
+    const wallet_1 = accounts.get("wallet_1")!;
+    
+    // Register first
+    let block = chain.mineBlock([
+      Tx.contractCall("node-vault", "register-node", 
+        [types.uint(100000)], wallet_1.address)
+    ]);
+    
+    // Unregister
+    block = chain.mineBlock([
+      Tx.contractCall("node-vault", "unregister-node", 
+        [], wallet_1.address)
+    ]);
+    
+    block.receipts[0].result.expectOk();
+    
+    // Verify node is gone
+    let nodeData = chain.callReadOnlyFn(
+      "node-vault",
+      "get-node",
+      [types.principal(wallet_1.address)],
+      wallet_1.address
+    );
+    nodeData.result.expectOk().expectNone();
+  }
 });
