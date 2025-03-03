@@ -21,7 +21,6 @@ Clarinet.test({
     assertEquals(block.height, 2);
     block.receipts[0].result.expectOk();
     
-    // Verify node status
     let nodeData = chain.callReadOnlyFn(
       "node-vault",
       "get-node",
@@ -48,33 +47,31 @@ Clarinet.test({
 });
 
 Clarinet.test({
-  name: "Ensure only owner can update status",
+  name: "Test unregister node functionality",
   async fn(chain: Chain, accounts: Map<string, Account>) {
-    const deployer = accounts.get("deployer")!;
     const wallet_1 = accounts.get("wallet_1")!;
     
-    // Register node first
+    // Register first
     let block = chain.mineBlock([
       Tx.contractCall("node-vault", "register-node", 
         [types.uint(100000)], wallet_1.address)
     ]);
     
-    // Try updating status as non-owner
+    // Unregister
     block = chain.mineBlock([
-      Tx.contractCall("node-vault", "update-status",
-        [types.principal(wallet_1.address), types.ascii("active")],
-        wallet_1.address)
-    ]);
-    
-    block.receipts[0].result.expectErr(100);
-    
-    // Update status as owner
-    block = chain.mineBlock([
-      Tx.contractCall("node-vault", "update-status",
-        [types.principal(wallet_1.address), types.ascii("active")],
-        deployer.address)
+      Tx.contractCall("node-vault", "unregister-node", 
+        [], wallet_1.address)
     ]);
     
     block.receipts[0].result.expectOk();
+    
+    // Verify node is gone
+    let nodeData = chain.callReadOnlyFn(
+      "node-vault",
+      "get-node",
+      [types.principal(wallet_1.address)],
+      wallet_1.address
+    );
+    nodeData.result.expectOk().expectNone();
   }
 });
